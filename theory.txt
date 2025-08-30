@@ -116,3 +116,10 @@ ii.named export
    export function() add....
    import {add} from './math.js'
 
+
+
+LEC-5
+
+Learning about fs in-built module which is there inside node.
+
+refer file.js
