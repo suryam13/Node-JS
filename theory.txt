@@ -1,1 +1,118 @@
 NodeJS by piyush garg
+
+LEC-1,2,3
+
+What is NodeJS ?
+NodeJS is a runtime environment of JavaScript which is used to run the JS code out of the browser.Earlier JS code was only possible to run in the browser as the engine which supports the execution was in browsers only eg- V8 in chrome,spidermonkey in firefox and JavaScriptCore in safari.
+
+Ryan Dahl extracted V8 engine from chrome and embedded it in c++ code,gave that project the name node js.So now as it is written in cpp,it provides system level access so we can also do file handling on the machine level.
+
+In cmd if we just write node we would be getting the intercative terminal REPL and we can use it same as we do in browser console.eg- 2 + 3 => 5
+
+REPL-
+Read → It takes the user’s input (a line of code).
+Eval → It evaluates (executes) that code.
+Print → It prints the result back to the user.
+Loop → It goes back to wait for the next input. 
+
+Talking about versioning in Node JS downloads 
+LTS - long term support,mostly preferred because this is the most stable version,ready for production.
+Current - this is the beta version,on which testing is undergoing,if u want to get familiar with the new features then u can use this but it is highlt unstable.
+
+LTS will always start with even number and the current version will always be in odd so once the beta version is been tested completely,then the next LTS version would go from 18 to 20 and the current will go from 19 to 21
+
+node --version
+npm -v (version for npm package)
+
+
+for executing js code using node js 
+node filename.js
+node filename(even this would work because node is responsible for running js files only)
+
+
+NodeJS is for running server side application, so all DOM manipulation and other frontend related applications are not present here.
+When Ryan Dahl embedded V8 into C++, he removed all browser-specific APIs and replaced them with system-level APIs.
+It means that u can write these things into ur code but can't run outside the browser i.e inside the node environment terminal. 
+
+❌ Eliminated (browser-only features):
+window object
+document, DOM manipulation (getElementById, etc.)
+CSS/HTML rendering APIs
+alert, prompt, confirm
+localStorage, sessionStorage, cookies (browser storage)
+fetch (was added much later in Node v18, but initially not present)
+Rendering APIs like <canvas>, WebGL
+
+✅ Added (Node.js-specific features):
+global (instead of window)
+process (info about Node process, env vars, etc.)
+require() / ES Modules (for importing code)
+File system APIs → fs module
+Networking APIs → http, net, https
+Buffers (binary data handling)
+EventEmitter, Streams
+Non-blocking I/O model
+
+
+
+
+LEC-4 
+
+Lets talk about modules in node js means creating modular codes by distributing the codebase.
+
+const dummy = require("fs"); //when we do this means we are searching in node js as this is a built in method
+
+const dummy = require('./math.js') //means we are searching in the current directory to import certain files
+
+in math.js folder
+
+-> Common JS method - 
+either u can use the one by one export or either the combined export at last as both of them wont work,if we use both then the last module.exports would override it.
+
+i.adding export one by one 
+// utils.js
+exports.greet = function(name) {
+  return `Hello, ${name}!`;
+};
+
+exports.add = function(a, b) {
+  return a + b;
+};
+
+// app.js
+const utils = require('./utils.js');
+//or u can destructure it {greet,add}
+
+console.log(utils.greet("Suryam"));
+console.log(utils.add(10, 20));
+
+ii.adding collectively 
+// utils.js
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+function add(a, b) {
+  return a + b;
+}
+module.exports = { greet, add };   // exporting multiple
+
+//app.js
+const math = require('./math');
+
+console.log(math.greet("Suryam")); // Hello, Suryam!
+console.log(math.add(5, 7));       // 12
+
+const { greet, add } = require('./math');
+
+
+-> Modular JS method - have to compulsorily write "type" = "module" in package.json
+
+i.default export
+  export default add 
+  import add from './math.js';
+
+ii.named export
+   export function() add....
+   import {add} from './math.js'
+
