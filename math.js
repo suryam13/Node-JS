@@ -24,34 +24,27 @@
 
 
 // COMMON JS
-// module.exports = add;  //adding a single item
 
-//module.exports = {add,sub} // multiple items been exported 
 
-//module.exports = {addfun : add , subfun : sub} // aliasing the function
 
 //exports.add = function add(a,b)
 // {
 //     return a + b;
 // }
 
+// exports.sub = function sub(a,b)
+// {
+//     return a - b;
+// }
 
 
-exports.add = function add(a,b)
-{
-    return a + b;
-}
-exports.sub = function sub(a,b)
-{
-    return a - b;
-}
+// function mul(a,b)
+// {
+//     return a * b;
+// }
 
+// module.exports = add;  //adding a single item
 
+//module.exports = {add,sub} // multiple items been exported 
 
-
-function mul(a,b)
-{
-    return a * b;
-}
-
-module.exports = mul;
+//module.exports = {addfun : add , subfun : sub} // aliasing the function
