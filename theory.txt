@@ -6,8 +6,9 @@ What is NodeJS ?
 NodeJS is a runtime environment of JavaScript which is used to run the JS code out of the browser.Earlier JS code was only possible to run in the browser as the engine which supports the execution was in browsers only eg- V8 in chrome,spidermonkey in firefox and JavaScriptCore in safari.
 
 Ryan Dahl extracted V8 engine from chrome and embedded it in c++ code,gave that project the name node js.So now as it is written in cpp,it provides system level access so we can also do file handling on the machine level.
+Talking about v8 engine,it was made by using only Cpp but as it was only possible to run the code in the browser so Ryan Dahl extracted v8 engine and embedded into his new cpp code to make it use outside the browser also and write scalable backend and also incuded api's to interact with file systems and all,as it was not possible to write backend with JS. 
 
-In cmd if we just write node we would be getting the intercative terminal REPL and we can use it same as we do in browser console.eg- 2 + 3 => 5
+In cmd if we just write node we would be getting the intercative terminal REPL and we can use it same as we do in browser console.eg- 2 + 3 => 5 
 
 REPL-
 Read → It takes the user’s input (a line of code).
@@ -67,7 +68,7 @@ const dummy = require('./math.js') //means we are searching in the current direc
 in math.js folder
 
 -> Common JS method - 
-either u can use the one by one export or either the combined export at last as both of them wont work,if we use both then the last module.exports would override it.
+either u can use the one by one export or either the combined export at last,as both of them wont work,if we use both then the last module.exports would override it.
 
 i.adding export one by one 
 // utils.js
@@ -123,3 +124,378 @@ LEC-5
 Learning about fs in-built module which is there inside node.
 
 refer file.js
+
+
+LEC-6
+
+How NodeJS works or processes the code internally ?
+
+Node JS is made up of 2 major components :
+1.V8 engine -> written in C++ to execute JS Code
+2.LibUV -> a library to implement the concept of event loop and thread pool 
+
+When we write node index.js means index.js is been sent to the node environment to execute the code
+
+->Now node firstly creates a NODE PROCESS for us,and this process runs using a single thread.The thread on which the main code runs is called main thread.
+->Node first looks at all require() or import statements.It loads those modules (resolves path, caches them, executes their code once).
+->Now in the main thread it initializes a project and all the top level code is executed first.
+What is top level code ?
+the raw code which is written in the file which is not inside any function or callbacks.
+top level code = variables + console logs + function definition
+If there is any function,then inside that whatever items would be there they would not be considered in the top level code,they would be executed when the function is been called.
+If there is any function which returns promise then that promise specific part would be handled by the event loop as it would continuously check whether the call stack is empty to execute the promise callback or not,as of now the promise part .then/.catch would be queued in the microtask queue(v8 engine).
+-> Event Callbacks register like fs,http
+-> Event Loop Starts
+ 
+talking about async await code and promises they are been handled by microtask queue(which is there in v8 engine) and setTimeout,fs,http,etc are handled by libUV.
+
+👉 So: Microtasks (Promises/async-await) = V8 responsibility, but executed in sync with libuv’s event loop cycle.
+
+What is Thread Pool ?
+Thread pool consists of various worker threads(by default 4 in Node JS,) so that if there comes an intensive task in the CPU (async taks like file reading,cryptography,etc) which is blocking operations and takes a lot of time,then this thread can be used to takeover.Used for blocking / expensive operations that would otherwise freeze the event loop.
+
+does setTimeout also gets handled by the worker threads ? -> NO 
+The timer is registered inside libuv’s timer system.
+Libuv keeps track of the current time and the scheduled time (e.g., now + 2000ms).
+No thread is busy waiting!
+When 2000ms passes, libuv pushes the callback (fn) into the Timer Phase queue of the event loop.
+Event loop eventually executes it by checking if the main stack is empty or not.
+
+->Now as event loop starts and "When the event loop encounters certain async operations (like fs, crypto, zlib, DNS), Node.js offloads them to the libuv thread pool which doesnt blocks the execution in main thread and continues its isolated processing parallelly. But pure JavaScript CPU-heavy code still blocks the event loop eg.(for loop with high iterations).
+
+Why is event loop required ?
+To manage the async tasks in the JS Code.
+
+General Flow when a code starts its execution :
+
+Call Stack -> everything comes here and gets completed in the form of LIFO.Handles all the synchronous tasks.
+If async tasks come then it behaves differently -
+i.Promises -> the executor function runs but the .then/.catch part goes to microtask queue which is there inside v8 engine,event loop which is there in libUV continuously checks if the call stack is empty or not,if it is empty then sends the tasks which is there in the microtask queue(v8 engine) one by one for execution in the call stack.
+Promises do not go to libuv at all — they stay within V8.
+The event loop (libuv) gives V8 a chance to drain them between phases.
+
+2.setTimeout timer - 
+Goes to libuv’s timer phase (not the thread pool).
+libuv manages the timer countdown.
+When timer expires → callback is pushed into the timier phase queue of the event loop.
+Event loop delivers it when the call stack is free.
+
+3.fs - this goes to the libUV library in the thread pool and takes a worker thread to cary out the execution in parallel and once done then waits as the event loop checks if the call stack is empty then passes the callback delivery to the it to the main call stack.
+Note : the process of reading/writing the file is done by worker thread,only the callback is sent to the main stack for final execution 
+
+Now two possibilities:
+
+If the main call stack (V8) is busy →
+The callback just waits in libuv’s I/O queue.
+It won’t interrupt current stack execution.
+
+When the event loop cycle reaches the poll phase (I/O callbacks phase), and the call stack is empty →
+libuv pushes the callback into the call stack for execution.
+
+
+
+
+Event Loop Steps :
+
+    Expired timer Callbacks (setTimeout, setInterval)
+        |
+    Pending Callbacks Phase – executes system-level callbacks (like TCP errors).
+        |
+    Idle,prepare phase (internal used by node js,not imortant)
+        |
+    Poll(IO polling - FS,https,sockets) 
+        |
+    Check (setImmediate)
+        |
+    close callbacks.(handles things like socket close and all)
+        |
+    checks if there are some pending tasks if yes then again the cycle runs
+
+When you’re inside an I/O callback and want to do something immediately after the I/O operation, use setImmediate.
+
+
+Node keeps internal queues for each phase:
+Timers queue
+Pending callbacks queue
+I/O callbacks queue (Poll phase)
+Check phase queue (setImmediate)
+Close callbacks queue
+It also checks the microtask queue in V8 after each callback.
+The event loop inspects these queues at the end of each cycle to decide whether to start another iteration.
+
+by default the size of the thread pool is 4,means 4 cpu intensive tasks can be done parallelly.
+To increase the size it would be process.env.UV_THREADPOOL_SIZE=8 
+
+
+Blocking Code means the ones which are synchronous and handled by the main thread and Non Blocking are the ones which are asynchronous handled by the LibUV
+
+
+LEC-7
+
+Creating HTTP web sever in Node JS
+
+There are two main ways to create a server in Node.js:
+-> Using the built-in http module
+Comes with Node.js.
+Low-level → you handle everything manually (routes, headers, JSON parsing, etc.).
+Provides more control, but requires more code.
+-> Using Express.js
+Express is a framework built on top of Node’s http module.
+Provides routing, middleware, and helper functions.
+Same core functionality, but easier, faster, and cleaner to write.
+
+refer index.js
+
+LEC-8 
+diff between route and endpoint 
+route -> /users
+endpoint -> route + http method GET /users
+In this section we will be learning about URL : Uniform Resource Locator
+
+again refer index.js
+ 
+Components of URL :
+https://www.suryamorg.com/about?userId=1&a=2
+
+https - protocol (a set of rules that tells the browser how rhe communnication should be done)
+Domain - user friendly name of the ip address of the server.
+path - /about (this are the routes) 
+query parameters - (written after ?)this are the extra data sent usually in a key=value format and it is used to pass the additional information to the server in order to perform operations accordingly.
+
+now if i want to use the query parameters,i cant use it easily because it doesnt understands when to apply the seperator after the ? mark so treats the whole thing as an endpoint as it doesnt parses.
+so we use npm i url which parses the url for us and seggeregates the query parameter and the normal path
+
+we start it from ? and seperate it from &
+//url -> http://localhost:8000/hareKrishna?name=suryam&age=20
+const myUrl = url.parse(req.url,true)
+we get an object and then can use the myurl.query.keyname to access the value.
+
+LEC-9
+
+In this session we'll study about the http methods:
+
+GET - used to just retrieve data from the server,by default the browser does makes the GET request
+POST - used when we want to send data to the server   
+PUT - Replaces the entire resource with a new version
+PATCH - PATCH is used to apply partial updates to a resource, meaning that only the fields that need to be changed are sent in the request body
+DELETE - to delete some information from the server
+
+we can use the request in HTTP as 
+if(req.method === 'POST') 
+   res.end('details posted)
+
+All the route definition and setup is been done in the http.create server only,if express framework is not used
+
+
+LEC-10
+
+In this session we will learning about express 
+
+when we do 
+const app  = express(); //this under the hood goes to the raw http method,but express provides some additonal methods to make the app more flexible like methods and all
+
+under the hood -> const server = http.createServer(app); // app is the handler
+
+in express we dont need to use additional things like url for parsing we can directly use that req.query.age as it is been already done behind the scenes
+
+LEC-11
+
+In this session we will be talking about versioning in Node JS
+4.18.2
+
+1st part - Major update,could break down the app built on older version
+2nd part - minor update - recommended to update (can be security update)
+3rd part - patch updates,small tweaks or bug fixes (optional to do)
+
+minor and patch updates are safe to do,major updates break the older codebase
+
+Tilde (~) → updates only PATCH.
+Caret (^) → updates MINOR + PATCH, but not MAJOR.
+
+
+
+LEC-12
+
+In this session we will be learning about REST API
+
+Representational State Transfer - an architectural for designing network applications 
+
+A Restful api is an api which follows rest principles for communication between client and server.
+A REST API is just a set of rules for designing APIs where resources (users, products, orders, etc.) are represented by URLs and manipulated using HTTP methods.
+Representational State Transfer” = transferring resource states (data) between client and server through their representations (JSON, XML, etc.) over HTTP.
+A REST API is the whole interface your backend exposes, following REST principles (resources, HTTP methods, stateless, etc.).
+A route (like app.get("/users")) is just one endpoint inside that REST API.
+
+1.Based on Client-Server Architecture
+The client (frontend) requests data.
+The server (backend) provides data.
+They are independent of each other.
+
+2.Stateless
+Each request from the client to the server must contain all the information needed.
+The server does not remember the client’s previous requests.
+
+3.Uniform Interface - should respect http methods 
+Uses standard HTTP methods:
+GET → Read data
+POST → Create data
+PUT → Update data
+DELETE → Remove data
+
+In a RESTful API, data is usually sent as JSON, but it can also be sent in XML.
+
+LEC-13
+
+In this we will create our own REST API
+
+
+//sending the user with a dynamic id 
+app.get('/api/user/:id',(req,res)=>{
+    const id  = req.params.id;
+
+    const user = data.find((item) => item.id == id)
+
+    res.send(user)
+})
+
+app.get('/api/users/:id/:name'), (req, res) => {
+  const userId = req.params.id;     // retrieves :id
+  const userName = req.params.name; // retrieves :name
+}
+
+
+//lets suppose if i want to have multiple http request on one route then for readibiity purpose we can use 
+
+app.route('/api/user/:id')
+.get((req,res)=>{
+    const id  = req.params.id;
+
+    const user = data.find((item) => item.id == id)
+
+    res.send(user)
+})
+.patch((req,res)=>{
+    res.json({status : "Pending"})  
+})
+
+
+LEC 14 -
+
+By default the browser sends GET request only.So for testing the post,patch,delete we need to use the external tool for testing like postman
+
+👉 .json() = Convert received JSON string → JavaScript object/array.
+
+JSON.stringify(obj)
+Converts a JavaScript object → JSON string.
+
+
+JSON.parse(user);
+Converts JSON string → JavaScript object.
+
+if u want to make a json then write it in the form of string
+const str = '{"id":1,"name":"Alice"}';   // JSON string
+const obj = JSON.parse(str);             // now it's a JS object
+console.log(obj);
+-> { id: 1, name: 'Alice' }  //turned into an object
+
+
+Diff between res.send() and res.json() 
+
+res.json() is specifically meant for sending JSON responses.
+res.send() is generic → it can send strings, buffers, HTML, or JSON (auto-detected).
+With res.json(), the response is always JSON (safe and predictable).
+With res.send(), the format can change depending on what you pass (string → plain text, object → JSON, etc.).
+res.json() makes the intention clear and explicit in REST APIs.
+res.send() is fine for quick responses but not recommended as a standard for APIs.
+Best practice: use res.json() in REST APIs for consistency and readability.
+
+Object v/s JSON
+
+Object = data you use in your JS program.
+JSON = string version of that data used to send/receive between programs (like server ↔ client).
+“An object in JavaScript can hold both data and methods, while JSON is only a text-based format for storing and exchanging data. In JSON, you cannot declare methods — it can only contain key-value pairs with primitive data types, arrays, or other JSON objects.”
+
+in JSON Keys must always be in double quotes
+
+LEC 15-
+In this session we will be learning about middlewares.
+
+Middlewares are the functions which has an access to the response,request,next
+
+When a client sends a request to the server,if we apply a middleware then firstly the request has to pass through the middleware have some processings done and then go ahead to then next middleware or the route handler.
+
+We can perform tasks like validation,parsing,etc with the help of the middlewares.It can either send the request further or can end the response cycle there and there only if any inconvenince happens during the validation phase.
+
+we can use middleware using app.use((req,res,next))
+
+
+When you call next() inside a middleware, Express decides where to go next based on the order in which you defined your middlewares and routes in code.It goes in a sequence from top to bottom
+
+if i make changes in a middleware in the request object and call next() using req.name = 'suryam' then that would be passed to next route handler/middleware also
+
+
+Creating middlewares :
+
+1.cretting and using it globally for each route 
+
+//creating middleware and using middleware globally for all routes
+app.use((req,res,next)=>{
+    console.log('hello from middleware 1');
+    //if i do only uptill here and not call next() then the request will just hang which is not good
+    next(); //if i do this then it would go to next middleware/route handler
+    // res.send('hey'); //the process would end here itself
+})
+
+2.creating seperate middleware :
+function checkAuth(req, res, next) {
+  if (req.query.token === "123") next();
+  else res.status(403).send("Forbidden");
+}
+
+//middlware applicable only for this route 
+app.get("/dashboard", checkAuth, (req, res) => {
+  res.send("Dashboard Accessed!");
+});
+
+3.multiple middlewares at one single route
+function logger(req, res, next) {
+  console.log("Logger middleware");
+  next();
+}
+
+function auth(req, res, next) {
+  if (req.query.token === "123") {
+    console.log("Auth passed");
+    next();
+  } else {
+    res.status(403).send("Forbidden");
+  }
+}
+
+function dataCheck(req, res, next) {
+  if (req.query.id) {
+    console.log("Data check passed");
+    next();
+  } else {
+    res.status(400).send("Missing ID");
+  }
+}
+
+// multiple middlewares before final handler
+app.get("/dashboard", logger, auth, dataCheck, (req, res) => {
+  res.send("Dashboard Accessed!");
+});
+
+
+⚡ How this works
+Request hits /dashboard.
+logger runs → calls next() → goes to auth.
+auth runs → if valid, calls next() → goes to dataCheck.
+dataCheck runs → if valid, calls next() → finally reaches route handler.
+If any middleware doesn’t call next(), the chain stops there.
+
+
+
+LEC-16 
+
+In this we will be talking about HTTP Headers in API 
