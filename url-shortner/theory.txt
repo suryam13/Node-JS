@@ -1,0 +1,50 @@
+LEC-21 
+In this we will be making a url shortner project
+
+for making A tiny, secure, URL-friendly, unique string ID generator for JavaScript,we would use nano ID
+
+TASK 1 :
+POST /url  and send a url in the request object 
+Take an id and get a random id for it using nano id,and send that as the response
+
+TASK 2 :
+GET /shortURL then redirect them to the original website by first searching the shortURL in the database then inside that object using.redirectURL and res.redirect(redirectURL)
+
+TASK 3 :
+GET /url/analytics/shortURL
+show the analytics by fetching
+
+NOTE - Use the exact http:// link else it would be attached to localhost as a relative path and wont work 
+
+When you call res.send(...) (or res.json, or res.status(...).send), the response goes to the client, but your Node.js function keeps executing the lines beneath.So always do return res.send() else if there is another res.send() then there would be erro as headers cannot be set.
+
+LEC-22
+
+In this session we will be learning about SSR(Server Side Rendering)
+
+
+🔹 Server-Side Rendering (SSR)
+When you do SSR, the backend:
+Fetches data from DB.
+Embeds that data into an HTML template.
+Sends ready-to-use HTML to the client. 
+So yes, in this case the backend does both roles — data provider and renderer.
+This breaks strict REST separation, because the server is not just providing resources anymore, it’s shaping presentation too.
+
+
+In order to do the server side rendering we would have to send big html snippets,in order to deal with that we would have some templating engines.
+EJS(Embedded JavaScript Templating) solves for us the problem of dealing with the HTML Part
+
+🔎 Why do we need EJS?
+When building a web app, you usually want to:
+Serve HTML pages to users
+
+But not always static HTML → you often need to insert dynamic data (like usernames, product lists, orders, etc.) into the HTML.
+If you only had plain HTML, you’d have to manually copy-paste values.
+With EJS, you can embed JavaScript code inside your HTML to generate dynamic pages.
+
+npm i ejs
+app.set('view engine',ejs)
+
+EJS BASICS :
+for inserting any value in js we <= >,for jsut using js we do < >
